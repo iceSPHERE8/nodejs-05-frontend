@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+
+    color-scheme: light dark;
+    color: rgba(255, 255, 255, 0.87);
+    background-color: #eaeaea;
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+    /* 基础 btn 类 */
+    .link {
+        @apply hover:text-[#FFAD2F] transition-all ease-in-out;
+    }
+
+    .link.active {
+        @apply text-[#FFAD2F] font-bold underline decoration-2 underline-offset-4;
+    }
+
+    .btn {
+        @apply text-[#FFAD2F] font-bold px-4 rounded-xl hover:scale-95 transition-all ease-in-out hover:cursor-pointer;
+    }
+}
