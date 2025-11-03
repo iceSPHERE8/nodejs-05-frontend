@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-function AddPost({ popupHandler, post, isEdit }) {
+function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [image, setImage] = useState(null);
@@ -17,60 +17,55 @@ function AddPost({ popupHandler, post, isEdit }) {
 
     const submitHandler = (e) => {
         e.preventDefault();
-
-        if (!isEdit) {
-            const formData = new FormData();
-            formData.append("title", title);
-            formData.append("content", content);
-            formData.append("image", image);
-
-            fetch("http://localhost:8080/feed/post", {
-                method: "POST",
-                body: formData,
-            })
-                .then((res) => {
-                    setIsLoading(true);
-                    return res.json();
-                })
-                .then((data) => {
-                    if (!data) {
-                        throw new Error("Failed to post");
-                    }
-
-                    setIsLoading(false);
-                    setMessage(data.message);
-                    setTitle("");
-                    setContent("");
-                })
-                .catch((err) => {
-                    setMessage(err);
-                });
-        }
+        setIsLoading(true);
+        setMessage("");
 
         const formData = new FormData();
-
         formData.append("title", title);
         formData.append("content", content);
-        formData.append("image", image);
 
-        fetch(`http://localhost:8080/feed/post/update/${post._id}`, {
-            method: "PUT",
+        if (image && image instanceof File) {
+            formData.append("image", image);
+        }
+
+        const url = isEdit
+            ? `http://localhost:8080/feed/post/update/${post._id}`
+            : "http://localhost:8080/feed/post";
+
+        const method = isEdit ? "PUT" : "POST";
+
+        fetch(url, {
+            method: method,
             body: formData,
         })
             .then((res) => {
-                setIsLoading(true);
+                if (!res.ok) throw new Error("Failed to save post");
                 return res.json();
             })
             .then((data) => {
-                if (!data) {
-                    throw new Error("Failed to post");
+                const savedPost = data.post;
+
+                if (!isEdit) {
+                    setPosts((prev) => [...prev, savedPost]);
+                } else {
+                    setPosts((prev) =>
+                        prev.map((p) =>
+                            p._id === savedPost._id ? savedPost : p
+                        )
+                    );
                 }
-                
-                setIsLoading(false);
-                setMessage(data.message);
+
+                popupHandler();
+                setTitle("");
+                setContent("");
+                setImage(null);
+                setMessage("Post saved successfully!");
             })
             .catch((err) => {
-                setMessage(err);
+                setMessage(err.message);
+            })
+            .finally(() => {
+                setIsLoading(false);
             });
     };
 

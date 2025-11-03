@@ -9,8 +9,9 @@ function Posts() {
     const [error, setError] = useState(null);
 
     const [popupDisplay, setPopupDisplay] = useState(false);
-    const [postId, setPostId] = useState("");
-    
+    const [totalPage, setTotalPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(1);
+
     const [isEdit, setIsEdit] = useState(false);
 
     const [post, setPost] = useState();
@@ -30,8 +31,9 @@ function Posts() {
                 return res.json();
             })
             .then((data) => {
-                console.log();
+                // console.log();
                 setPosts(data.posts || []);
+                setTotalPage(data.totalPage);
                 setLoading(false);
             })
             .catch((err) => {
@@ -49,9 +51,9 @@ function Posts() {
         return <h3>{error}</h3>;
     }
 
-    if (!posts || posts.length === 0) {
-        return <h3>No posts.</h3>;
-    }
+    // if (!posts || posts.length === 0) {
+    //     return <h3>No posts.</h3>;
+    // }
 
     const getSinglePost = (id) => {
         navigate(`/feed/post/${id}`);
@@ -67,6 +69,43 @@ function Posts() {
             })
             .then((data) => {
                 setPost(data.post);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    };
+
+    const handlePage = (index) => {
+        fetch(`http://localhost:8080/feed/posts?page=${index}`)
+            .then((res) => {
+                if (res.status !== 200) {
+                    throw new Error("Failed to get posts.");
+                }
+                return res.json();
+            })
+            .then((data) => {
+                // console.log();
+                setPosts(data.posts || []);
+                setTotalPage(data.totalPage);
+                setCurrentPage(data.currentPage);
+                setLoading(false);
+            })
+            .catch((err) => {
+                console.log(err);
+                setError(err.message);
+                setLoading(false);
+            });
+    };
+
+    const handleDelete = (id) => {
+        fetch(`http://localhost:8080/feed/post/delete/${id}`, {
+            method: "DELETE",
+        })
+            .then((res) => {
+                setPosts((prevPosts) =>
+                    prevPosts.filter((post) => post._id !== id)
+                );
+                return res.json();
             })
             .catch((err) => {
                 console.log(err);
@@ -108,9 +147,21 @@ function Posts() {
                                         />
                                         <div
                                             className="absolute top-1 left-2 text-sm font-bold"
-                                            onClick={() => handleEdit(p._id)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleEdit(p._id);
+                                            }}
                                         >
                                             edit
+                                        </div>
+                                        <div
+                                            className="absolute top-1 right-2 text-sm font-bold"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDelete(p._id);
+                                            }}
+                                        >
+                                            delete
                                         </div>
                                     </div>
                                     <div className="text-black">
@@ -124,6 +175,25 @@ function Posts() {
                 </div>
             </div>
 
+            <div className="bg-white rounded-full mt-4">
+                <ul className="flex justify-center items-center text-center gap-2 px-1 py-1">
+                    {Array.from({ length: totalPage }).map((_, index) => {
+                        return (
+                            <li
+                                key={index + 1}
+                                onClick={() => handlePage(index + 1)}
+                                className={`${
+                                    currentPage == index + 1
+                                        ? "bg-[#320A53]"
+                                        : "bg-[#eaeaea]"
+                                } rounded-full w-6 h-6 hover:bg-[#320A53] transition-all hover:cursor-pointer`}
+                            >
+                                {index + 1}
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
             <div className="mt-8">
                 <button
                     className="btn bg-[#FFAD2F] text-white"
@@ -131,9 +201,14 @@ function Posts() {
                 >
                     New Post
                 </button>
-
                 {popupDisplay && (
-                    <AddPost popupHandler={popupHandler} post={post} isEdit={isEdit} />
+                    <AddPost
+                        popupHandler={popupHandler}
+                        post={post}
+                        posts={posts}
+                        setPosts={setPosts}
+                        isEdit={isEdit}
+                    />
                 )}
             </div>
         </>
