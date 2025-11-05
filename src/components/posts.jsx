@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 
 import AddPost from "./add-post";
 
+import { useAuth } from "./auth-context";
+
 function Posts() {
+    const { token, user } = useAuth();
+
     const [posts, setPosts] = useState();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -23,7 +27,11 @@ function Posts() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetch("http://localhost:8080/feed/posts")
+        fetch("http://localhost:8080/feed/posts", {
+            headers: {
+                Authorization: "Bearer " + token
+            }
+        })
             .then((res) => {
                 if (res.status !== 200) {
                     throw new Error("Failed to get posts.");
@@ -41,7 +49,7 @@ function Posts() {
                 setError(err.message);
                 setLoading(false);
             });
-    }, []);
+    }, [user]);
 
     if (loading) {
         return <h3>Loading...</h3>;

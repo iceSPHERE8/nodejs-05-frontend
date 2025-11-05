@@ -2,14 +2,20 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import SignupPopup from "./signup-popup";
+import LoginPopup from "./login-popup";
 
 function Header() {
-    const [popupDisplay, setPopupDisplay] = useState(false);
+    const [loginPopupDisplay, setLoginPopupDisplay] = useState(false);
+    const [signupPopupDisplay, setSignupPopupDisplay] = useState(false);
 
     const location = useLocation();
 
-    const popupHandler = () => {
-        setPopupDisplay(!popupDisplay);
+    const loginPopupHandler = () => {
+        setLoginPopupDisplay(!loginPopupDisplay);
+    };
+    
+    const signupPopupHandler = () => {
+        setSignupPopupDisplay(!signupPopupDisplay);
     };
 
     return (
@@ -24,9 +30,25 @@ function Header() {
                             Feed
                         </a>
                     </div>
-                    <div className="link hover:cursor-pointer" onClick={popupHandler}>Signup</div>
-                    {popupDisplay && (
-                        <SignupPopup popupHandler={popupHandler} />
+                    <div
+                        className="link hover:cursor-pointer"
+                        onClick={loginPopupHandler}
+                    >
+                        Login
+                    </div>
+                    <div
+                        className="link hover:cursor-pointer"
+                        onClick={signupPopupHandler}
+                    >
+                        Signup
+                    </div>
+
+                    {signupPopupDisplay && (
+                        <SignupPopup popupHandler={signupPopupHandler} />
+                    )}
+
+                    {loginPopupDisplay && (
+                        <LoginPopup popupHandler={loginPopupHandler} />
                     )}
                 </div>
             </header>
