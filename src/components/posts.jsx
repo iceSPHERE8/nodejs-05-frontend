@@ -9,6 +9,7 @@ function Posts() {
     const { token, user } = useAuth();
 
     const [posts, setPosts] = useState();
+    const [status, setStatus] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -27,10 +28,15 @@ function Posts() {
     const navigate = useNavigate();
 
     useEffect(() => {
+        setPosts([]);
+        setStatus("");
+        setError(null);
+        setLoading(true);
+
         fetch("http://localhost:8080/feed/posts", {
             headers: {
-                Authorization: "Bearer " + token
-            }
+                Authorization: "Bearer " + token,
+            },
         })
             .then((res) => {
                 if (res.status !== 200) {
@@ -49,6 +55,25 @@ function Posts() {
                 setError(err.message);
                 setLoading(false);
             });
+
+        if (user && user !== null) {
+            fetch(`http://localhost:8080/feed/post/status/${user}`)
+                .then((res) => {
+                    if (res.status !== 200) {
+                        throw new Error("Failed to get status.");
+                    }
+                    return res.json();
+                })
+                .then((data) => {
+                    setStatus(data.userStatus);
+                })
+                .catch((err) => {
+                    console.log(err);
+                    setError(err.message);
+                });
+        }
+
+        console.log(user);
     }, [user]);
 
     if (loading) {
@@ -71,7 +96,11 @@ function Posts() {
         setPopupDisplay(!popupDisplay);
         setIsEdit(true);
 
-        fetch(`http://localhost:8080/feed/post/${id}`)
+        fetch(`http://localhost:8080/feed/post/${id}`, {
+            headers: {
+                Authorization: "Bearer " + token,
+            },
+        })
             .then((res) => {
                 return res.json();
             })
@@ -84,7 +113,11 @@ function Posts() {
     };
 
     const handlePage = (index) => {
-        fetch(`http://localhost:8080/feed/posts?page=${index}`)
+        fetch(`http://localhost:8080/feed/posts?page=${index}`, {
+            headers: {
+                Authorization: "Bearer " + token,
+            },
+        })
             .then((res) => {
                 if (res.status !== 200) {
                     throw new Error("Failed to get posts.");
@@ -108,6 +141,9 @@ function Posts() {
     const handleDelete = (id) => {
         fetch(`http://localhost:8080/feed/post/delete/${id}`, {
             method: "DELETE",
+            headers: {
+                Authorization: "Bearer " + token,
+            },
         })
             .then((res) => {
                 setPosts((prevPosts) =>
@@ -120,15 +156,45 @@ function Posts() {
             });
     };
 
+    const handleStatus = (e) => {
+        e.preventDefault();
+
+        fetch(`http://localhost:8080/feed/post/status/update?user=${user}`, {
+            method: "POST",
+            body: JSON.stringify({
+                updateStatus: status,
+            }),
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + token,
+            },
+        })
+            .then((res) => {
+                return res.json();
+            })
+            .then((data) => {
+                console.log(data);
+                setStatus(data.status);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    };
+
     return (
         <>
             <div>
                 <div className="mt-8 w-full">
-                    <form className="flex flex-col items-center gap-4 md:flex-row md:justify-center">
+                    <form
+                        className="flex flex-col items-center gap-4 md:flex-row md:justify-center"
+                        onSubmit={handleStatus}
+                    >
                         <input
                             type="text"
                             placeholder="Enter your status..."
                             name="status"
+                            value={status || ""}
+                            onChange={(e) => setStatus(e.target.value)}
                             className="border-2 px-4 py-1 border-gray-300 text-gray-800 rounded-4xl w-xl outline-0"
                         />
                         <button className="btn" type="submit">

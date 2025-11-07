@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 
+import { useAuth } from "./auth-context";
+
 function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
+    const { token, user } = useAuth();
+
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [image, setImage] = useState(null);
@@ -37,6 +41,9 @@ function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
         fetch(url, {
             method: method,
             body: formData,
+            headers: {
+                Authorization: "Bearer " + token
+            }
         })
             .then((res) => {
                 if (!res.ok) throw new Error("Failed to save post");
