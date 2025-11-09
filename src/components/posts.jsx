@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 
 import AddPost from "./add-post";
 
 import { useAuth } from "./auth-context";
 
+const socket = io("http://localhost:8080");
+
 function Posts() {
     const { token, user } = useAuth();
 
-    const [posts, setPosts] = useState();
+    const [posts, setPosts] = useState([]);
     const [status, setStatus] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -27,11 +30,41 @@ function Posts() {
 
     const navigate = useNavigate();
 
+    const handleNewPost = (data) => {
+        if (data.action === "create") {
+            setPosts((prevPosts) => [...(prevPosts || []), data.post]);
+        } else if (data.action === "update") {
+            setPosts((prevPosts) => {
+                return prevPosts.map((p) =>
+                    p._id === data.post._id ? data.post : p
+                );
+            });
+        } else if (data.action === "delete") {
+            setPosts((prevPosts) =>
+                prevPosts.filter((post) => post._id !== data.post)
+            );
+        }
+    };
+
     useEffect(() => {
         setPosts([]);
         setStatus("");
         setError(null);
         setLoading(true);
+
+        // const handleNewPost = (data) => {
+        //     if (data.action === "create") {
+        //         setPosts((prevPosts) => [...(prevPosts || []), data.post]);
+        //     } else if (data.action === "update") {
+        //         setPosts((prevPosts) => {
+        //             return prevPosts.map((p) => {
+        //                 if (p._id === data.post._id) {
+        //                     p = data.post;
+        //                 }
+        //             });
+        //         });
+        //     }
+        // };
 
         fetch("http://localhost:8080/feed/posts", {
             headers: {
@@ -45,8 +78,11 @@ function Posts() {
                 return res.json();
             })
             .then((data) => {
-                // console.log();
                 setPosts(data.posts || []);
+                socket.on("posts", (data) => handleNewPost(data));
+
+                // console.log();
+                
                 setTotalPage(data.totalPage);
                 setLoading(false);
             })
@@ -73,7 +109,9 @@ function Posts() {
                 });
         }
 
-        console.log(user);
+        // return () => {
+        //     socket.off("posts", handleNewPost);
+        // };
     }, [user]);
 
     if (loading) {
@@ -106,6 +144,7 @@ function Posts() {
             })
             .then((data) => {
                 setPost(data.post);
+                socket.on("posts", (data) => handleNewPost(data));
             })
             .catch((err) => {
                 console.log(err);
@@ -146,9 +185,7 @@ function Posts() {
             },
         })
             .then((res) => {
-                setPosts((prevPosts) =>
-                    prevPosts.filter((post) => post._id !== id)
-                );
+                socket.on("posts", (data) => handleNewPost(data));
                 return res.json();
             })
             .catch((err) => {
@@ -207,7 +244,7 @@ function Posts() {
                     <hr className="w-2xl text-black" />
 
                     <div className="mt-8">
-                        <ul>
+                        <ul className="flex gap-4">
                             {posts.map((p) => (
                                 <li
                                     key={p._id}

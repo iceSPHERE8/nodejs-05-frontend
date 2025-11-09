@@ -53,7 +53,7 @@ function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
                 const savedPost = data.post;
 
                 if (!isEdit) {
-                    setPosts((prev) => [...prev, savedPost]);
+                    // setPosts((prev) => [...prev, savedPost]);
                 } else {
                     setPosts((prev) =>
                         prev.map((p) =>
