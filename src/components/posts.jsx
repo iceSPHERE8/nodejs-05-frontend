@@ -52,20 +52,6 @@ function Posts() {
         setError(null);
         setLoading(true);
 
-        // const handleNewPost = (data) => {
-        //     if (data.action === "create") {
-        //         setPosts((prevPosts) => [...(prevPosts || []), data.post]);
-        //     } else if (data.action === "update") {
-        //         setPosts((prevPosts) => {
-        //             return prevPosts.map((p) => {
-        //                 if (p._id === data.post._id) {
-        //                     p = data.post;
-        //                 }
-        //             });
-        //         });
-        //     }
-        // };
-
         fetch("http://localhost:8080/feed/posts", {
             headers: {
                 Authorization: "Bearer " + token,
@@ -80,8 +66,6 @@ function Posts() {
             .then((data) => {
                 setPosts(data.posts || []);
                 socket.on("posts", (data) => handleNewPost(data));
-
-                // console.log();
                 
                 setTotalPage(data.totalPage);
                 setLoading(false);
