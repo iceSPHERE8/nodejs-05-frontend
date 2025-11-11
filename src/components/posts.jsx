@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { io } from "socket.io-client";
 
 import AddPost from "./add-post";
 
 import { useAuth } from "./auth-context";
-
-const socket = io("http://localhost:8080");
 
 function Posts() {
     const { token, user } = useAuth();

@@ -19,14 +19,44 @@ function SignupPopup({ popupHandler }) {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        fetch("http://localhost:8080/auth/signup", {
-            method: "PUT",
+        const graphqlQuery = {
+            query: `
+                mutation CreateUser($input: UserInputData!) {
+                    createUser(userInput: $input) {
+                        _id
+                        username
+                        email
+                    }
+                }
+            `,
+            variables: {
+                input: {
+                    username: formData.username,
+                    email: formData.email,
+                    password: formData.password,
+                },
+            },
+        };
+
+        fetch("http://localhost:8080/graphql", {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(formData),
+            body: JSON.stringify(graphqlQuery),
         })
-            .then((result) => {
+            .then((res) => {
+                return res.json();
+            })
+            .then((data) => {
+                if (data.errors && data.errors[0].extensions.status === 422) {
+                    throw new Error("Validation failed!");
+                }
+
+                if (data.errors) {
+                    throw new Error("User creating failed!");
+                }
+                console.log(data);
                 popupHandler();
             })
             .catch((err) => {
@@ -37,7 +67,10 @@ function SignupPopup({ popupHandler }) {
     return (
         <>
             <div className="fixed inset-0 z-50 flex items-center justify-center">
-                <div className="absolute z-10 inset-0 bg-black opacity-50" onClick={popupHandler}></div>
+                <div
+                    className="absolute z-10 inset-0 bg-black opacity-50"
+                    onClick={popupHandler}
+                ></div>
                 <div className="z-99 w-xl bg-white rounded-xl text-black p-4">
                     <form onSubmit={handleSubmit}>
                         <div>
