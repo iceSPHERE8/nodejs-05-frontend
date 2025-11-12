@@ -49,9 +49,20 @@ function Posts() {
         setError(null);
         setLoading(true);
 
-        fetch("http://localhost:8080/feed/posts", {
+        const graphqlQuery = {
+            query: `
+                query {
+                    fetchAllPost {
+                    }
+                }
+            `
+        }
+
+        fetch("http://localhost:8080/graphql", {
+            method: "POST",
             headers: {
                 Authorization: "Bearer " + token,
+                "Content-Type": "application/json"
             },
         })
             .then((res) => {
@@ -99,9 +110,9 @@ function Posts() {
         return <h3>Loading...</h3>;
     }
 
-    if (error) {
-        return <h3>{error}</h3>;
-    }
+    // if (error) {
+    //     return <h3>{error}</h3>;
+    // }
 
     // if (!posts || posts.length === 0) {
     //     return <h3>No posts.</h3>;
@@ -286,6 +297,7 @@ function Posts() {
                     })}
                 </ul>
             </div>
+            
             <div className="mt-8">
                 <button
                     className="btn bg-[#FFAD2F] text-white"

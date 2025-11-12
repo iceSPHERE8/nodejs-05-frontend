@@ -24,49 +24,67 @@ function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
         setIsLoading(true);
         setMessage("");
 
-        const formData = new FormData();
-        formData.append("title", title);
-        formData.append("content", content);
-
-        if (image && image instanceof File) {
-            formData.append("image", image);
+        const graphqlQuery = {
+            query:`
+                mutation CreatePost($input: PostInputData!){
+                    createPost(postInput: $input) {
+                        _id
+                        title
+                        content
+                        imageUrl
+                        creator {
+                            _id
+                            username
+                        }
+                        createdAt
+                    }
+                }
+            `,
+            variables: {
+                input: {
+                    title: title,
+                    content: content,
+                    imageUrl: "url" 
+                }
+            }
         }
 
-        const url = isEdit
-            ? `http://localhost:8080/feed/post/update/${post._id}`
-            : "http://localhost:8080/feed/post";
-
-        const method = isEdit ? "PUT" : "POST";
-
-        fetch(url, {
-            method: method,
-            body: formData,
+        fetch("http://localhost:8080/graphql", {
+            method: "POST",
+            body: JSON.stringify(graphqlQuery),
             headers: {
-                Authorization: "Bearer " + token
+                Authorization: "Bearer " + token,
+                "Content-Type": "application/json"
             }
         })
             .then((res) => {
                 if (!res.ok) throw new Error("Failed to save post");
                 return res.json();
             })
-            .then((data) => {
-                const savedPost = data.post;
-
-                if (!isEdit) {
-                    // setPosts((prev) => [...prev, savedPost]);
-                } else {
-                    setPosts((prev) =>
-                        prev.map((p) =>
-                            p._id === savedPost._id ? savedPost : p
-                        )
-                    );
+            .then((response) => {
+                if(response.errors) {
+                    console.log(response.errors)
                 }
 
-                popupHandler();
-                setTitle("");
-                setContent("");
-                setImage(null);
-                setMessage("Post saved successfully!");
+                console.log(response)
+
+                // const savedPost = data.post;
+
+                // if (!isEdit) {
+                //     // setPosts((prev) => [...prev, savedPost]);
+                // } else {
+                //     setPosts((prev) =>
+                //         prev.map((p) =>
+                //             p._id === savedPost._id ? savedPost : p
+                //         )
+                //     );
+                // }
+
+                // popupHandler();
+                // setTitle("");
+                // setContent("");
+                // setImage(null);
+                // setMessage("Post saved successfully!");
             })
             .catch((err) => {
                 setMessage(err.message);

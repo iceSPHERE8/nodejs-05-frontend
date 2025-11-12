@@ -22,33 +22,57 @@ function LoginPopup({ popupHandler }) {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        fetch("http://localhost:8080/auth/login", {
+        const graphqlQuery = {
+            query: `
+                query Login($email: String!, $password: String!) {
+                    login(email: $email, password: $password) {
+                        token
+                        userId
+                    }
+                }
+            `,
+            variables: {
+                email: formData.email,
+                password: formData.password,
+            },
+        };
+
+        fetch("http://localhost:8080/graphql", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(formData),
+            body: JSON.stringify(graphqlQuery),
         })
-            .then((result) => {
-                if (!result.ok) {
-                    return result.json().then((errData) => {
-                        const error = new Error(
-                            errData.message || "Login failed!"
-                        );
-                        error.status = result.status;
-                        error.data = errData.data;
-                        throw error;
-                    });
+            .then((res) => {
+                if(!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
                 }
-                return result.json();
+                return res.json();
             })
-            .then((data) => {
-                const payload = JSON.parse(atob(data.token.split(".")[1]));
+            .then((response) => {
+                if (response.errors) {
+                    const error = new Error(
+                        response.errors[0].message || "Login failed!"
+                    );
+                    error.statusCode =
+                        response.errors[0].extensions.status || 500;
+                    throw error;
+                }
+
+                const { data } = response;
+
+                const payload = JSON.parse(
+                    atob(data.login.token.split(".")[1])
+                );
                 const expiresAt = payload.exp * 1000;
 
-                localStorage.setItem("expiresAt", new Date(parseInt(expiresAt)).toLocaleString());
+                localStorage.setItem(
+                    "expiresAt",
+                    new Date(parseInt(expiresAt)).toLocaleString()
+                );
 
-                login(data.token, data.userId);
+                login(data.login.token, data.login.userId);
                 console.log("Login success!", data);
                 popupHandler();
             })
