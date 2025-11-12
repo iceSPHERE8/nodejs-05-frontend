@@ -52,7 +52,14 @@ function Posts() {
         const graphqlQuery = {
             query: `
                 query {
-                    fetchAllPost {
+                    fetchAllPosts {
+                        posts {
+                            _id
+                            title
+                            content
+                            imageUrl
+                        }
+                        total
                     }
                 }
             `
@@ -64,18 +71,16 @@ function Posts() {
                 Authorization: "Bearer " + token,
                 "Content-Type": "application/json"
             },
+            body: JSON.stringify(graphqlQuery)
         })
             .then((res) => {
-                if (res.status !== 200) {
-                    throw new Error("Failed to get posts.");
-                }
                 return res.json();
             })
-            .then((data) => {
-                setPosts(data.posts || []);
-                socket.on("posts", (data) => handleNewPost(data));
+            .then((response) => {
+                console.log(response)
+                setPosts(response.data.fetchAllPosts.posts || []);
                 
-                setTotalPage(data.totalPage);
+                setTotalPage(response.data.fetchAllPosts.total);
                 setLoading(false);
             })
             .catch((err) => {
@@ -100,10 +105,6 @@ function Posts() {
                     setError(err.message);
                 });
         }
-
-        // return () => {
-        //     socket.off("posts", handleNewPost);
-        // };
     }, [user]);
 
     if (loading) {
@@ -136,7 +137,7 @@ function Posts() {
             })
             .then((data) => {
                 setPost(data.post);
-                socket.on("posts", (data) => handleNewPost(data));
+                // socket.on("posts", (data) => handleNewPost(data));
             })
             .catch((err) => {
                 console.log(err);
@@ -177,7 +178,7 @@ function Posts() {
             },
         })
             .then((res) => {
-                socket.on("posts", (data) => handleNewPost(data));
+                // socket.on("posts", (data) => handleNewPost(data));
                 return res.json();
             })
             .catch((err) => {
