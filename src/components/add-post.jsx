@@ -19,13 +19,38 @@ function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
         }
     }, [post]);
 
-    const submitHandler = (e) => {
+    const submitHandler = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         setMessage("");
 
+        const formData = new FormData();
+        formData.append("image", image);
+
+        let filePath = "";
+
+        if (isEdit) {
+            formData.append("oldPath", post.imageUrl);
+        }
+
+        try {
+            const res = await fetch("http://localhost:8080/post-image", {
+                method: "PUT",
+                headers: {
+                    Authorization: "Bearer " + token,
+                },
+                body: formData,
+            });
+
+            const fileResData = await res.json();
+            filePath = fileResData.filePath;
+
+        } catch (err) {
+            throw new Error(err.message);
+        }
+
         const graphqlQuery = {
-            query:`
+            query: `
                 mutation CreatePost($input: PostInputData!){
                     createPost(postInput: $input) {
                         _id
@@ -44,54 +69,34 @@ function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
                 input: {
                     title: title,
                     content: content,
-                    imageUrl: "url" 
-                }
-            }
-        }
+                    imageUrl: filePath,
+                },
+            },
+        };
 
-        fetch("http://localhost:8080/graphql", {
-            method: "POST",
-            body: JSON.stringify(graphqlQuery),
-            headers: {
-                Authorization: "Bearer " + token,
-                "Content-Type": "application/json"
-            }
-        })
-            .then((res) => {
-                if (!res.ok) throw new Error("Failed to save post");
-                return res.json();
-            })
-            .then((response) => {
-                if(response.errors) {
-                    console.log(response.errors)
-                }
-
-                console.log(response)
-
-                // const savedPost = data.post;
-
-                // if (!isEdit) {
-                //     // setPosts((prev) => [...prev, savedPost]);
-                // } else {
-                //     setPosts((prev) =>
-                //         prev.map((p) =>
-                //             p._id === savedPost._id ? savedPost : p
-                //         )
-                //     );
-                // }
-
-                // popupHandler();
-                // setTitle("");
-                // setContent("");
-                // setImage(null);
-                // setMessage("Post saved successfully!");
-            })
-            .catch((err) => {
-                setMessage(err.message);
-            })
-            .finally(() => {
-                setIsLoading(false);
+        try {
+            const res = await fetch("http://localhost:8080/graphql", {
+                method: "POST",
+                body: JSON.stringify(graphqlQuery),
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                },
             });
+
+            if (!res.ok) throw new Error("Failed to save post");
+            const response = await res.json();
+
+            if (response.errors) {
+                console.log(response.errors);
+            }
+
+            popupHandler();
+        } catch (err) {
+            setMessage(err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

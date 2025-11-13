@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 import AddPost from "./add-post";
 
@@ -7,14 +8,9 @@ import { useAuth } from "./auth-context";
 
 function Posts() {
     const { token, user } = useAuth();
-
-    const [posts, setPosts] = useState([]);
     const [status, setStatus] = useState("");
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     const [popupDisplay, setPopupDisplay] = useState(false);
-    const [totalPage, setTotalPage] = useState(1);
     const [currentPage, setCurrentPage] = useState(1);
 
     const [isEdit, setIsEdit] = useState(false);
@@ -27,68 +23,63 @@ function Posts() {
 
     const navigate = useNavigate();
 
-    const handleNewPost = (data) => {
-        if (data.action === "create") {
-            setPosts((prevPosts) => [...(prevPosts || []), data.post]);
-        } else if (data.action === "update") {
-            setPosts((prevPosts) => {
-                return prevPosts.map((p) =>
-                    p._id === data.post._id ? data.post : p
-                );
+    // const handleNewPost = (data) => {
+    //     if (data.action === "create") {
+    //         setPosts((prevPosts) => [...(prevPosts || []), data.post]);
+    //     } else if (data.action === "update") {
+    //         setPosts((prevPosts) => {
+    //             return prevPosts.map((p) =>
+    //                 p._id === data.post._id ? data.post : p
+    //             );
+    //         });
+    //     } else if (data.action === "delete") {
+    //         setPosts((prevPosts) =>
+    //             prevPosts.filter((post) => post._id !== data.post)
+    //         );
+    //     }
+    // };
+
+    const { data, isLoading, error } = useQuery({
+        queryKey: ["posts", currentPage],
+        queryFn: async () => {
+            const graphqlQuery = {
+                query: `
+                    query {
+                        fetchAllPosts(page: ${currentPage}) {
+                            posts {
+                                _id
+                                title
+                                content
+                                imageUrl
+                            }
+                            total
+                        }
+                    }
+                `,
+            };
+
+            const res = await fetch("http://localhost:8080/graphql", {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(graphqlQuery),
             });
-        } else if (data.action === "delete") {
-            setPosts((prevPosts) =>
-                prevPosts.filter((post) => post._id !== data.post)
-            );
-        }
-    };
+
+            const resData = await res.json();
+            if(resData.errors) throw new Error(resData.errors[0].message);
+
+            return resData.data.fetchAllPosts;
+        },
+        keepPreviousData: true,
+        staleTime: 1000
+    });
+
+    const posts = data?.posts || [];
+    const totalPage = data?.total || 1;
 
     useEffect(() => {
-        setPosts([]);
-        setStatus("");
-        setError(null);
-        setLoading(true);
-
-        const graphqlQuery = {
-            query: `
-                query {
-                    fetchAllPosts {
-                        posts {
-                            _id
-                            title
-                            content
-                            imageUrl
-                        }
-                        total
-                    }
-                }
-            `
-        }
-
-        fetch("http://localhost:8080/graphql", {
-            method: "POST",
-            headers: {
-                Authorization: "Bearer " + token,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(graphqlQuery)
-        })
-            .then((res) => {
-                return res.json();
-            })
-            .then((response) => {
-                console.log(response)
-                setPosts(response.data.fetchAllPosts.posts || []);
-                
-                setTotalPage(response.data.fetchAllPosts.total);
-                setLoading(false);
-            })
-            .catch((err) => {
-                console.log(err);
-                setError(err.message);
-                setLoading(false);
-            });
-
         if (user && user !== null) {
             fetch(`http://localhost:8080/feed/post/status/${user}`)
                 .then((res) => {
@@ -102,12 +93,11 @@ function Posts() {
                 })
                 .catch((err) => {
                     console.log(err);
-                    setError(err.message);
                 });
         }
     }, [user]);
 
-    if (loading) {
+    if (isLoading) {
         return <h3>Loading...</h3>;
     }
 
@@ -145,29 +135,30 @@ function Posts() {
     };
 
     const handlePage = (index) => {
-        fetch(`http://localhost:8080/feed/posts?page=${index}`, {
-            headers: {
-                Authorization: "Bearer " + token,
-            },
-        })
-            .then((res) => {
-                if (res.status !== 200) {
-                    throw new Error("Failed to get posts.");
-                }
-                return res.json();
-            })
-            .then((data) => {
-                // console.log();
-                setPosts(data.posts || []);
-                setTotalPage(data.totalPage);
-                setCurrentPage(data.currentPage);
-                setLoading(false);
-            })
-            .catch((err) => {
-                console.log(err);
-                setError(err.message);
-                setLoading(false);
-            });
+        setCurrentPage(index);
+        // fetch(`http://localhost:8080/feed/posts?page=${index}`, {
+        //     headers: {
+        //         Authorization: "Bearer " + token,
+        //     },
+        // })
+        //     .then((res) => {
+        //         if (res.status !== 200) {
+        //             throw new Error("Failed to get posts.");
+        //         }
+        //         return res.json();
+        //     })
+        //     .then((data) => {
+        //         // console.log();
+        //         setPosts(data.posts || []);
+        //         setTotalPage(data.totalPage);
+        //         setCurrentPage(data.currentPage);
+        //         setLoading(false);
+        //     })
+        //     .catch((err) => {
+        //         console.log(err);
+        //         setError(err.message);
+        //         setLoading(false);
+        //     });
     };
 
     const handleDelete = (id) => {
@@ -241,13 +232,13 @@ function Posts() {
                             {posts.map((p) => (
                                 <li
                                     key={p._id}
-                                    // onClick={() => getSinglePost(p._id)}
+                                    onClick={() => getSinglePost(p._id)}
                                     className="hover:cursor-pointer"
                                 >
                                     <div className="relative">
                                         <img
                                             className="w-32"
-                                            src={`http://localhost:8080${p.imageUrl}`}
+                                            src={`http://localhost:8080/${p.imageUrl.replace(/\\/g, '/')}`}
                                         />
                                         <div
                                             className="absolute top-1 left-2 text-sm font-bold"
@@ -298,7 +289,7 @@ function Posts() {
                     })}
                 </ul>
             </div>
-            
+
             <div className="mt-8">
                 <button
                     className="btn bg-[#FFAD2F] text-white"
@@ -311,8 +302,9 @@ function Posts() {
                         popupHandler={popupHandler}
                         post={post}
                         posts={posts}
-                        setPosts={setPosts}
+                        // setPosts={setPosts}
                         isEdit={isEdit}
+                       
                     />
                 )}
             </div>
