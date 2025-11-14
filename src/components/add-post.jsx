@@ -31,6 +31,69 @@ function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
 
         if (isEdit) {
             formData.append("oldPath", post.imageUrl);
+            try {
+                const res = await fetch("http://localhost:8080/post-image", {
+                    method: "PUT",
+                    headers: {
+                        Authorization: "Bearer " + token,
+                    },
+                    body: formData,
+                });
+
+                const fileResData = await res.json();
+                filePath = fileResData.filePath;
+                console.log(filePath)
+                
+            } catch (err) {
+                throw new Error(err.message);
+            }
+
+            // editPost(postId: ID!, postInput: PostInputData!): Post!
+            const graphqlQuery = {
+                query: `
+                    mutation EditPost($postId: String!, $postInput: PostInputData!) {
+                        editPost(postId: $postId, postInput: $postInput) {
+                            _id
+                            title
+                            content
+                            imageUrl
+                            creator {
+                                _id
+                                username
+                            }
+                            createdAt
+                        }
+                    }
+                `,
+                variables: {
+                    postId: post._id,
+                    postInput: {
+                        title: title,
+                        content: content,
+                        imageUrl: filePath,
+                    },
+                },
+            };
+
+            fetch("http://localhost:8080/graphql", {
+                method: "POST",
+                body: JSON.stringify(graphqlQuery),
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                },
+            })
+                .then((res) => {
+                    return res.json();
+                })
+                .then((resData) => {
+                    console.log(resData);
+                })
+                .catch((err) => {
+                    throw new Error(err.message);
+                });
+
+            return;
         }
 
         try {
@@ -44,37 +107,36 @@ function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
 
             const fileResData = await res.json();
             filePath = fileResData.filePath;
-
         } catch (err) {
             throw new Error(err.message);
         }
 
-        const graphqlQuery = {
-            query: `
-                mutation CreatePost($input: PostInputData!){
-                    createPost(postInput: $input) {
-                        _id
-                        title
-                        content
-                        imageUrl
-                        creator {
-                            _id
-                            username
-                        }
-                        createdAt
-                    }
-                }
-            `,
-            variables: {
-                input: {
-                    title: title,
-                    content: content,
-                    imageUrl: filePath,
-                },
-            },
-        };
-
         try {
+            const graphqlQuery = {
+                query: `
+                    mutation CreatePost($input: PostInputData!){
+                        createPost(postInput: $input) {
+                            _id
+                            title
+                            content
+                            imageUrl
+                            creator {
+                                _id
+                                username
+                            }
+                            createdAt
+                        }
+                    }
+                `,
+                variables: {
+                    input: {
+                        title: title,
+                        content: content,
+                        imageUrl: filePath,
+                    },
+                },
+            };
+
             const res = await fetch("http://localhost:8080/graphql", {
                 method: "POST",
                 body: JSON.stringify(graphqlQuery),
@@ -143,7 +205,7 @@ function AddPost({ popupHandler, post, isEdit, posts, setPosts }) {
                             type="submit"
                             className="btn bg-[#FFAD2F] text-white"
                         >
-                            Create
+                            {isEdit ? "Update" : "Create"}
                         </button>
                     </div>
                 </form>

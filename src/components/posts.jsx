@@ -8,7 +8,6 @@ import { useAuth } from "./auth-context";
 
 function Posts() {
     const { token, user } = useAuth();
-    const [status, setStatus] = useState("");
 
     const [popupDisplay, setPopupDisplay] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -16,28 +15,13 @@ function Posts() {
     const [isEdit, setIsEdit] = useState(false);
 
     const [post, setPost] = useState();
+    const [status, setStatus] = useState("");
 
     const popupHandler = () => {
         setPopupDisplay(!popupDisplay);
     };
 
     const navigate = useNavigate();
-
-    // const handleNewPost = (data) => {
-    //     if (data.action === "create") {
-    //         setPosts((prevPosts) => [...(prevPosts || []), data.post]);
-    //     } else if (data.action === "update") {
-    //         setPosts((prevPosts) => {
-    //             return prevPosts.map((p) =>
-    //                 p._id === data.post._id ? data.post : p
-    //             );
-    //         });
-    //     } else if (data.action === "delete") {
-    //         setPosts((prevPosts) =>
-    //             prevPosts.filter((post) => post._id !== data.post)
-    //         );
-    //     }
-    // };
 
     const { data, isLoading, error } = useQuery({
         queryKey: ["posts", currentPage],
@@ -51,6 +35,10 @@ function Posts() {
                                 title
                                 content
                                 imageUrl
+                                creator {
+                                    username
+                                    email
+                                }
                             }
                             total
                         }
@@ -68,12 +56,12 @@ function Posts() {
             });
 
             const resData = await res.json();
-            if(resData.errors) throw new Error(resData.errors[0].message);
+            if (resData.errors) throw new Error(resData.errors[0].message);
 
             return resData.data.fetchAllPosts;
         },
         keepPreviousData: true,
-        staleTime: 1000
+        staleTime: 1000,
     });
 
     const posts = data?.posts || [];
@@ -81,18 +69,40 @@ function Posts() {
 
     useEffect(() => {
         if (user && user !== null) {
-            fetch(`http://localhost:8080/feed/post/status/${user}`)
+            // fetchUserStatus(userId: ID!): User!
+
+            const graphqlQuery = {
+                query: `
+                    query FetchUserStatus($userId: ID!) {
+                        fetchUserStatus(userId: $userId) {
+                            status
+                        }
+                    }
+                `,
+                variables: {
+                    userId: user,
+                },
+            };
+
+            fetch(`http://localhost:8080/graphql`, {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(graphqlQuery),
+            })
                 .then((res) => {
                     if (res.status !== 200) {
                         throw new Error("Failed to get status.");
                     }
                     return res.json();
                 })
-                .then((data) => {
-                    setStatus(data.userStatus);
+                .then((resData) => {
+                    setStatus(resData.data.fetchUserStatus.status);
                 })
                 .catch((err) => {
-                    console.log(err);
+                    throw new Error(err.message);
                 });
         }
     }, [user]);
@@ -117,20 +127,39 @@ function Posts() {
         setPopupDisplay(!popupDisplay);
         setIsEdit(true);
 
-        fetch(`http://localhost:8080/feed/post/${id}`, {
+        const graphqlQuery = {
+            // fetchOnePost(postId: String!): Post!
+            query: `
+                query FetchOnePost($postId: String!){
+                    fetchOnePost(postId: $postId) {
+                        title
+                        content
+                        imageUrl
+                    }
+                }
+            `,
+            variables: {
+                postId: id,
+            },
+        };
+
+        fetch(`http://localhost:8080/graphql`, {
+            method: "POST",
             headers: {
                 Authorization: "Bearer " + token,
+                "Content-Type": "application/json",
             },
+            body: JSON.stringify(graphqlQuery),
         })
             .then((res) => {
                 return res.json();
             })
-            .then((data) => {
-                setPost(data.post);
-                // socket.on("posts", (data) => handleNewPost(data));
+            .then((resData) => {
+                // console.log(resData);
+                setPost({ ...resData.data.fetchOnePost, _id: id });
             })
             .catch((err) => {
-                console.log(err);
+                throw new Error(err.message);
             });
     };
 
@@ -180,25 +209,38 @@ function Posts() {
     const handleStatus = (e) => {
         e.preventDefault();
 
-        fetch(`http://localhost:8080/feed/post/status/update?user=${user}`, {
-            method: "POST",
-            body: JSON.stringify({
-                updateStatus: status,
-            }),
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + token,
+        const graphqlQuery = {
+            // editUserStatus(userId: ID!, statusInput: String!): User!
+            query: `
+                mutation EditUserStatus($userId: ID!, $statusInput: String!){
+                    editUserStatus(userId: $userId, statusInput: $statusInput) {
+                        status
+                    }
+                }
+            `,
+            variables: {
+                userId: user,
+                statusInput: status
             },
+        };
+
+        fetch(`http://localhost:8080/graphql`, {
+            method: "POST",
+            headers: {
+                Authorization: "Bearer " + token,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(graphqlQuery),
         })
             .then((res) => {
                 return res.json();
             })
-            .then((data) => {
-                console.log(data);
-                setStatus(data.status);
+            .then((resData) => {
+                // console.log(resData);
+                setStatus(resData.data.editUserStatus.status);
             })
             .catch((err) => {
-                console.log(err);
+                throw new Error(err.message);
             });
     };
 
@@ -238,7 +280,10 @@ function Posts() {
                                     <div className="relative">
                                         <img
                                             className="w-32"
-                                            src={`http://localhost:8080/${p.imageUrl.replace(/\\/g, '/')}`}
+                                            src={`http://localhost:8080/${p.imageUrl.replace(
+                                                /\\/g,
+                                                "/"
+                                            )}`}
                                         />
                                         <div
                                             className="absolute top-1 left-2 text-sm font-bold"
@@ -262,6 +307,9 @@ function Posts() {
                                     <div className="text-black">
                                         <h3>{p.title}</h3>
                                         <p>{p.content}</p>
+                                        <p className="text-sm text-gray-400">
+                                            {p.creator.email}
+                                        </p>
                                     </div>
                                 </li>
                             ))}
@@ -304,7 +352,6 @@ function Posts() {
                         posts={posts}
                         // setPosts={setPosts}
                         isEdit={isEdit}
-                       
                     />
                 )}
             </div>
